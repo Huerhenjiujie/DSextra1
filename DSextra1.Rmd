@@ -1,0 +1,136 @@
+---
+title: "DSextra"
+author: "Hening CUi"
+date: "11/13/2021"
+output: github_document
+---
+```{r,echo = FALSE}
+library (tidyverse)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = 0.6,
+  out.width = "90%"
+)
+
+options(
+  ggplot2.continuous.color = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_color_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+## let simulate sth
+
+i have a function
+
+```{r}
+sim_mean_sd = function(n, mu = 2, sigma = 3) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+  
+  sim_data %>% 
+    summarize(
+      mu_hat = mean(x),
+      sigma_hat = sd(x)
+    )
+}
+```
+
+i can simulate it 
+
+```{r}
+sim_mean_sd(30)
+```
+
+## let simulate a lot
+
+lets start with a for loop
+
+```{r}
+output = vector("list", length = 100)
+
+for (i in 1:100) {
+  output[[i]] = sim_mean_sd( 30)
+}
+bind_rows(output)
+```
+
+lets use a loop function
+
+
+```{r}
+sim_results = 
+  rerun(100, sim_mean_sd( 30)) %>% 
+  bind_rows()
+```
+
+let look at result
+```{r}
+sim_results %>% 
+  ggplot(aes(x = mu_hat)) + geom_density()
+
+sim_results %>% 
+  summarize(avg_mean = mean(mu_hat),
+            sd_mean = sd(mu_hat))
+
+sim_results %>% 
+  ggplot(aes(x = sigma_hat))+ geom_density()
+```
+## try other sample size
+
+```{r}
+n_list =
+  list(
+    "n = 30" = 30,
+    "n = 60" = 60,
+    "n = 120" = 120,
+    "n = 240" = 240
+  )
+
+output = vector("list", length = 4)
+
+for (i in 1:4){
+  output[[i]] = rerun(100, sim_mean_sd(n_list[[i]])) %>% 
+    bind_rows()
+  }
+```
+
+```{r, cache = TRUE}
+sim_results =
+  tibble(
+  sample_size = c(30, 60, 120, 240)
+) %>% 
+  mutate(output_list = map(.x = sample_size, ~rerun(1000, sim_mean_sd(.x))),
+         estimate_df = map(output_list, bind_rows))  %>% 
+  select(-output_list) %>% 
+  unnest(estimate_df)
+
+```
+
+
+some data frame
+
+```{r}
+sim_results %>% 
+  mutate(
+    sample_size = str_c("n = ", sample_size),
+    sample_size = fct_inorder(sample_size)) %>% 
+  ggplot(aes(x = sample_size, y = mu_hat, fill = sample_size)) + 
+  geom_violin()
+```
+
+```{r}
+sim_results %>%
+  group_by(sample_size) %>% 
+  summarize(avg_mean = mean(mu_hat),
+            sd_mean = sd(mu_hat))
+
+```
+
